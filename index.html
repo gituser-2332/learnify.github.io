@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>Learnify | Interactive Learning Portal</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/css">
+        body { background-color: #050505; color: #f4f4f5; font-family: 'Outfit', sans-serif; overflow-x: hidden; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        
+        .nebula-grid-bg {
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 2px 2px, rgba(255,255,255,0.02) 1px, transparent 0);
+            background-size: 100% 100%, 40px 40px;
+        }
+
+        .game-card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .game-card-hover:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px -10px rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+        
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+    <!-- Babel for in-browser JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="selection:bg-blue-600/30">
+    <div id="root"></div>
+
+    <!-- React and Dependencies via ESM -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom": "https://esm.sh/react-dom@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "react-router-dom": "https://esm.sh/react-router-dom@6.11.2?external=react,react-dom",
+        "lucide-react": "https://esm.sh/lucide-react@0.474.0?external=react",
+        "framer-motion": "https://esm.sh/framer-motion@10.12.16?external=react,react-dom"
+      }
+    }
+    </script>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useMemo, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { HashRouter as Router, Routes, Route, Link, useParams, useNavigate, useLocation } from 'react-router-dom';
+        import { motion, AnimatePresence } from 'framer-motion';
+        import { 
+            Search, ChevronRight, ExternalLink, ArrowLeft, X, Globe, MessageSquare, Sparkles, BookOpen, GraduationCap, Users,
+            Gamepad2, Flame, Monitor, Zap, Clock, Trophy, LayoutGrid, Info, Maximize2, Share2
+        } from 'lucide-react';
+
+        const CATEGORIES = [
+            { id: 'trending', name: 'Trending', icon: Flame, color: 'text-orange-500' },
+            { id: 'popular', name: 'Most Popular', icon: Gamepad2, color: 'text-blue-500' },
+            { id: 'new', name: 'Recently Added', icon: Sparkles, color: 'text-purple-500' },
+            { id: 'action', name: 'Action', icon: Zap, color: 'text-yellow-500' },
+            { id: 'all', name: 'All Games', icon: LayoutGrid, color: 'text-zinc-400' },
+        ];
+
+        function EducationCloak({ onEnter }) {
+            const [transitionState, setTransitionState] = useState('landing'); // 'landing', 'edu_loading', 'nebula_splash'
+
+            const handleStart = () => {
+                setTransitionState('edu_loading');
+                setTimeout(() => {
+                    setTransitionState('nebula_splash');
+                    setTimeout(onEnter, 5000);
+                }, 1000);
+            };
+
+            return (
+                <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans selection:bg-green-100 relative">
+                    <AnimatePresence>
+                        {transitionState === 'edu_loading' && (
+                            <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-white z-[2000] flex flex-col items-center justify-center p-10 text-center"
+                            >
+                                <div className="w-16 h-16 border-4 border-slate-100 border-t-[#00a300] rounded-full animate-spin mb-6" />
+                                <h3 className="text-xl font-bold text-slate-700 mb-2">Authenticating Learning Session</h3>
+                                <p className="text-sm text-slate-400 font-medium uppercase tracking-[0.2em] animate-pulse">Establishing Secure Connection...</p>
+                            </motion.div>
+                        )}
+
+                        {transitionState === 'nebula_splash' && (
+                            <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-[#0a0a0c] z-[3000] flex flex-col items-center justify-center p-10 overflow-hidden"
+                            >
+                                {/* Nebula Background Glow */}
+                                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                                    <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-indigo-600/20 blur-[120px] rounded-full animate-pulse" style={{ animationDuration: '4s' }}></div>
+                                    <div className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-purple-600/20 blur-[120px] rounded-full animate-pulse" style={{ animationDuration: '6s' }}></div>
+                                </div>
+
+                                <motion.div 
+                                    initial={{ scale: 0.8, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ duration: 1, ease: "easeOut" }}
+                                    className="relative z-10 flex flex-col items-center"
+                                >
+                                    <div className="relative mb-8">
+                                        <div className="absolute inset-0 bg-indigo-500 blur-3xl opacity-50 animate-pulse"></div>
+                                        <div className="w-32 h-32 bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 rounded-[2.5rem] flex items-center justify-center shadow-2xl relative border border-white/10">
+                                            <Zap className="w-16 h-16 text-white" />
+                                        </div>
+                                    </div>
+                                    
+                                    <motion.h1 
+                                        initial={{ y: 20, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        transition={{ delay: 0.5, duration: 0.8 }}
+                                        className="text-5xl font-black text-white tracking-tighter mb-4"
+                                    >
+                                        NEBULA<span className="text-indigo-400">UGS</span>
+                                    </motion.h1>
+                                    
+                                    <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: 240 }}
+                                        transition={{ delay: 1, duration: 3.5, ease: "easeInOut" }}
+                                        className="h-1 bg-white/10 rounded-full overflow-hidden mb-4"
+                                    >
+                                        <motion.div 
+                                            animate={{ x: [-240, 240] }}
+                                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                                            className="w-full h-full bg-gradient-to-r from-transparent via-indigo-400 to-transparent"
+                                        />
+                                    </motion.div>
+                                    
+                                    <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.4em] animate-pulse">Verifying Access Rights</p>
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* IXL-style Top Header */}
+                    <div className="bg-[#24292e] text-white text-[11px] font-bold py-1 px-6 flex justify-end gap-6 border-b border-white/5">
+                        <a href="#" className="hover:text-green-400 transition-colors uppercase">Membership</a>
+                        <a href="#" className="hover:text-green-400 transition-colors uppercase">Contact us</a>
+                        <a href="#" className="hover:text-green-400 transition-colors uppercase">Help center</a>
+                    </div>
+
+                    <header className="bg-white border-b border-slate-200 sticky top-0 z-[1000] shadow-sm">
+                        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+                            <div className="flex items-center gap-2 cursor-pointer">
+                                <div className="w-10 h-10 bg-[#00a300] rounded-lg flex items-center justify-center text-white shadow-sm">
+                                    <BookOpen className="w-6 h-6" />
+                                </div>
+                                <span className="text-[28px] font-black tracking-tighter text-[#00a300]">LEARN<span className="text-[#24292e]">IFY</span></span>
+                            </div>
+                            
+                            <nav className="hidden lg:flex items-center gap-8 text-[13px] font-bold text-slate-600 uppercase tracking-wide">
+                                <a href="#" className="text-[#00a300] border-b-2 border-[#00a300] h-20 flex items-center">Learning</a>
+                                <a href="#" className="hover:text-[#00a300] h-20 flex items-center transition-colors">Science</a>
+                                <a href="#" className="hover:text-[#00a300] h-20 flex items-center transition-colors">Math</a>
+                                <a href="#" className="hover:text-[#00a300] h-20 flex items-center transition-colors">ELA</a>
+                            </nav>
+
+                            <div className="flex items-center gap-4">
+                                <div className="hidden sm:flex flex-col text-right mr-4">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Members</span>
+                                    <button 
+                                        onClick={handleStart}
+                                        className="text-sm font-black text-slate-700 hover:text-[#00a300] transition-colors"
+                                    >
+                                        Sign in
+                                    </button>
+                                </div>
+                                <button 
+                                    onClick={handleStart}
+                                    className="px-6 h-11 bg-[#00a300] text-white font-black text-sm rounded-md hover:bg-[#008a00] transition-all shadow-md active:scale-95"
+                                >
+                                    GET STARTED
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Hero Section */}
+                    <main className="bg-gradient-to-b from-[#eef9ee] to-white pt-24 pb-32">
+                        <div className="max-w-7xl mx-auto px-6 text-center">
+                            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white rounded-full text-[11px] font-black text-[#00a300] shadow-sm border border-green-100 mb-8 uppercase tracking-[0.1em]">
+                                <Sparkles className="w-3 h-3" />
+                                Comprehensive K-12 Content
+                            </div>
+                            <h1 className="text-6xl font-black text-slate-800 leading-[1.1] mb-8 tracking-tight">
+                                Learning that sticks.
+                            </h1>
+                            <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-12 font-medium leading-relaxed">
+                                Learnify provides a personalized learning experience for every student, 
+                                helping them master essential skills at their own pace.
+                            </p>
+                            
+                            <div className="flex flex-wrap justify-center gap-4 mb-20">
+                                {['Math', 'Language Arts', 'Science', 'Social Studies', 'Spanish'].map(subject => (
+                                    <button 
+                                        key={subject}
+                                        onClick={handleStart}
+                                        className="px-10 h-16 bg-white border border-slate-200 rounded-xl text-lg font-black text-slate-700 hover:border-[#00a300] hover:text-[#00a300] hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-3"
+                                    >
+                                        <div className="w-2 h-2 rounded-full bg-[#00a300]" />
+                                        {subject}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="grid md:grid-cols-3 gap-12 text-left bg-white p-12 rounded-3xl border border-slate-100 shadow-2xl shadow-green-900/5">
+                                 <div>
+                                     <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-[#00a300] mb-6">
+                                         <Monitor className="w-6 h-6" />
+                                     </div>
+                                     <h3 className="text-xl font-black text-slate-800 mb-3">Interactive Learning</h3>
+                                     <p className="text-slate-500 font-medium text-sm leading-relaxed">Engagement is built into every skill, with vibrant visuals and meaningful feedback.</p>
+                                 </div>
+                                 <div className="border-x border-slate-50 px-12">
+                                     <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 mb-6">
+                                         <Users className="w-6 h-6" />
+                                     </div>
+                                     <h3 className="text-xl font-black text-slate-800 mb-3">Actionable Analytics</h3>
+                                     <p className="text-slate-500 font-medium text-sm leading-relaxed">Real-time data at your fingertips lets you know exactly where to focus your effort.</p>
+                                 </div>
+                                 <div>
+                                     <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600 mb-6">
+                                         <GraduationCap className="w-6 h-6" />
+                                     </div>
+                                     <h3 className="text-xl font-black text-slate-800 mb-3">Proven Success</h3>
+                                     <p className="text-slate-500 font-medium text-sm leading-relaxed">Research shows that schools using Learnify outperform state standards by up to 15%.</p>
+                                 </div>
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* Realistic Educational Footer */}
+                    <footer className="bg-[#24292e] text-white/50 py-16 px-6 border-t border-white/5">
+                        <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 text-[12px]">
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-2 text-white/80">
+                                    <BookOpen className="w-4 h-4 text-[#00a300]" />
+                                    <span className="font-black text-lg tracking-tight uppercase">LEARNIFY</span>
+                                </div>
+                                <p className="leading-relaxed">Dedicated to making quality education accessible through interactive technology and data-driven instruction.</p>
+                            </div>
+                            <div className="space-y-4">
+                                <h4 className="text-white text-xs font-black uppercase tracking-widest">Resources</h4>
+                                <ul className="space-y-2">
+                                    <li><a href="#" className="hover:text-white transition-colors">Standards Mapping</a></li>
+                                    <li><a href="#" className="hover:text-white transition-colors">Case Studies</a></li>
+                                    <li><a href="#" className="hover:text-white transition-colors">Webinars</a></li>
+                                </ul>
+                            </div>
+                            <div className="space-y-4">
+                                <h4 className="text-white text-xs font-black uppercase tracking-widest">Company</h4>
+                                <ul className="space-y-2">
+                                    <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
+                                    <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
+                                    <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
+                                </ul>
+                            </div>
+                            <div className="pt-4 border-t border-white/5 md:border-none flex flex-col gap-4">
+                                <span className="text-white/30">© 2024 Learnify. All rights reserved.</span>
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        const FALLBACK_IMAGES = [
+            "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=400",
+            "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=400",
+            "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=400",
+            "https://images.unsplash.com/photo-1552820728-8b83bb6b773f?auto=format&fit=crop&q=80&w=400",
+            "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&q=80&w=400",
+            "https://images.unsplash.com/photo-1542751110-97497ec58bc3?auto=format&fit=crop&q=80&w=400",
+            "https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&q=80&w=400",
+            "https://images.unsplash.com/photo-1580234811497-9bd7fd0f56ee?auto=format&fit=crop&q=80&w=400",
+            "https://images.unsplash.com/photo-1555680202-c86f0e12f086?auto=format&fit=crop&q=80&w=400"
+        ];
+
+        function getThumbnail(id, title) {
+            // Seeded random for consistent fallback
+            const seed = (title?.length || 0) % FALLBACK_IMAGES.length;
+            const fallback = FALLBACK_IMAGES[seed];
+            
+            // Try potential sources - in real app we'd check existence, 
+            // but here we'll use a safe construction
+            return `https://raw.githubusercontent.com/skid-inc/skid-pages/main/images/${id}.png`;
+        }
+
+        function GameCard({ game, size = 'normal' }) {
+            const [error, setError] = useState(false);
+            const seed = useMemo(() => (game?.title?.length || 0) % FALLBACK_IMAGES.length, [game?.title]);
+            const fallback = FALLBACK_IMAGES[seed];
+
+            if (!game) return null;
+
+            return (
+                <Link 
+                    to={`/game/${game.id}`}
+                    className={`group relative overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/50 backdrop-blur-sm game-card-hover ${size === 'large' ? 'col-span-2 row-span-2' : ''}`}
+                >
+                    <div className={`${size === 'large' ? 'aspect-square' : 'aspect-[4/3]'} w-full overflow-hidden relative`}>
+                        <img 
+                            src={!error ? getThumbnail(game.id, game.title) : fallback} 
+                            alt={game.title}
+                            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:rotate-1"
+                            onError={() => setError(true)}
+                            referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent transition-opacity group-hover:opacity-60" />
+                        
+                        <div className="absolute top-3 left-3 flex gap-2">
+                            {game.char === 'A' && (
+                                <div className="px-2 py-0.5 bg-blue-600 text-white text-[9px] font-black uppercase rounded-md shadow-lg shadow-blue-600/20">NEW</div>
+                            )}
+                            {size === 'large' && (
+                                <div className="px-2 py-0.5 bg-zinc-900/80 backdrop-blur-md text-white text-[9px] font-black uppercase rounded-md border border-white/10">FEATURED</div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="p-4 bg-zinc-900/80 border-t border-white/5 relative">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none">Sector Archive</span>
+                                </div>
+                                <h4 className={`font-black text-white truncate uppercase tracking-tighter leading-tight ${size === 'large' ? 'text-2xl' : 'text-xs'}`}>
+                                    {game.title}
+                                </h4>
+                            </div>
+                            <div className="shrink-0 w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center scale-0 group-hover:scale-100 transition-transform shadow-lg shadow-blue-600/40">
+                                <Gamepad2 className="w-4 h-4 text-white" />
+                            </div>
+                        </div>
+                    </div>
+                </Link>
+            );
+        }
+
+        function GameView() {
+            const { id } = useParams();
+            const navigate = useNavigate();
+            const [loading, setLoading] = useState(true);
+            const [allGames, setAllGames] = useState([]);
+            const iframeUrl = `/api/ugs/${id}`;
+            const title = id.replace(/^(cl|cl_)/i, '').replace(/([A-Z])/g, ' $1').trim() || id;
+
+            useEffect(() => {
+                const stored = localStorage.getItem('nebula_games');
+                if (stored) setAllGames(JSON.parse(stored));
+                
+                document.title = `Nebula UGS Playing: ${title}`;
+                return () => { document.title = 'Nebula UGS'; };
+            }, [title]);
+
+            const recommended = useMemo(() => {
+                return [...allGames].sort(() => Math.random() - 0.5).slice(0, 12);
+            }, [allGames, id]);
+
+            return (
+                <div className="min-h-screen bg-[#050505] flex flex-col">
+                    {/* Header */}
+                    <div className="h-16 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between px-6 sticky top-0 z-[100]">
+                            <div className="flex items-center gap-6">
+                                <button onClick={() => navigate('/')} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 group">
+                                    <ArrowLeft className="w-6 h-6 group-hover:text-white transition-colors" />
+                                </button>
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-blue-500 uppercase tracking-[0.3em] ml-4 mb-0.5">Nebula Interface Active</span>
+                                    <h1 className="text-sm font-black text-white px-4 py-1.5 bg-zinc-800 rounded-full border border-white/5 uppercase tracking-widest flex items-center gap-3">
+                                        <Monitor className="w-4 h-4 text-zinc-500" />
+                                        {title}
+                                    </h1>
+                                </div>
+                            </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => window.open(iframeUrl, '_blank')} className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors" title="Open in New Tab">
+                                <ExternalLink className="w-5 h-5" />
+                            </button>
+                            <button className="p-2.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
+                                <Share2 className="w-5 h-5" />
+                            </button>
+                            <button 
+                                onClick={() => document.getElementById('nebula-iframe')?.requestFullscreen()} 
+                                className="ml-2 px-6 h-10 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase rounded-lg shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-2"
+                            >
+                                <Maximize2 className="w-4 h-4" />
+                                Fullscreen
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col lg:flex-row p-6 gap-6 max-w-[1800px] mx-auto w-full">
+                        {/* Game Container */}
+                        <div className="flex-1 flex flex-col gap-6">
+                            <div className="flex-1 aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl relative border border-zinc-800 group">
+                                {loading && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 z-10">
+                                        <div className="w-16 h-16 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin mb-6" />
+                                        <div className="space-y-2 text-center">
+                                            <p className="text-xs font-black text-blue-500 uppercase tracking-[0.4em] animate-pulse">Initializing Interface...</p>
+                                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Bridging Nebula Archives</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <iframe 
+                                    id="nebula-iframe"
+                                    src={iframeUrl} 
+                                    className="w-full h-full border-none" 
+                                    allowFullScreen 
+                                    onLoad={() => setLoading(false)}
+                                    allow="autoplay; fullscreen; keyboard; gamepad"
+                                    referrerPolicy="no-referrer"
+                                />
+                            </div>
+
+                            {/* Game Info Bar */}
+                            <div className="p-8 bg-zinc-900 rounded-2xl border border-zinc-800">
+                                <div className="flex items-start justify-between mb-6">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Live Session: Now Playing</span>
+                                        </div>
+                                        <h2 className="text-3xl font-black text-white mb-2 italic tracking-tight uppercase">{title}</h2>
+                                        <div className="flex gap-2">
+                                            <span className="px-3 py-1 bg-zinc-800 rounded-md text-[10px] font-bold text-zinc-400 uppercase border border-white/5">Archive Data</span>
+                                            <span className="px-3 py-1 bg-zinc-800 rounded-md text-[10px] font-bold text-zinc-400 uppercase border border-white/5">High Performance</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="flex items-center gap-2 text-blue-500 mb-1">
+                                            <Clock className="w-4 h-4" />
+                                            <span className="text-xs font-black uppercase">Instant Play</span>
+                                        </div>
+                                        <p className="text-zinc-500 text-[11px] font-medium tracking-wide">No installation required</p>
+                                    </div>
+                                </div>
+                                <p className="text-zinc-400 text-sm leading-relaxed max-w-3xl">
+                                    Experience {title} in high performance. Nebula UGS ensures a smooth, latency-free gaming session directly in your browser. This version is optimized for performance and privacy.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Sidebar Recommended */}
+                        <div className="w-full lg:w-80 flex flex-col gap-4">
+                            <div className="flex items-center justify-between px-2">
+                                <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                                    <Zap className="w-4 h-4 text-blue-500" />
+                                    Related Games
+                                </h3>
+                                <Link to="/" className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase transition-colors">See All</Link>
+                            </div>
+                            <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+                                {recommended.map(g => (
+                                    <Link key={g.id} to={`/game/${g.id}`} className="flex items-center gap-3 p-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 transition-all group overflow-hidden">
+                                        <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden relative">
+                                            <img src={getThumbnail(g.id, g.title)} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-[11px] font-bold text-white truncate mb-1">{g.title}</h4>
+                                            <span className="text-[9px] text-zinc-500 uppercase font-black truncate block">Nebula Archive</span>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function MainLayout() {
+            const [games, setGames] = useState([]);
+            const [search, setSearch] = useState("");
+            const [isLoading, setIsLoading] = useState(true);
+            const [selectedCategory, setSelectedCategory] = useState('all');
+
+            useEffect(() => {
+                const fetchGames = async () => {
+                    try {
+                        const r = await fetch('https://cdn.jsdelivr.net/gh/mcgee1717/994894838923761723@49119bc/games.js');
+                        const t = await r.text();
+                        const match = t.match(/let files = (\[[\s\S]*?\]);/);
+                        if (match) {
+                            const rawFiles = JSON.parse(match[1].replace(/\s/g, '').replace(/'/g, '"'));
+                            const processed = rawFiles.filter(f => f && f !== "?").map(f => {
+                                const cleanId = f.replace(/\.html$/, '');
+                                const namePart = cleanId.replace(/^(cl|cl_)/i, '');
+                                return {
+                                    id: cleanId,
+                                    title: namePart.replace(/([A-Z])/g, ' $1').trim() || cleanId,
+                                    char: namePart.substring(0, 1).toUpperCase() || '#'
+                                };
+                            });
+                            processed.sort((a, b) => a.title.localeCompare(b.title));
+                            setGames(processed);
+                            localStorage.setItem('nebula_games', JSON.stringify(processed));
+                        }
+                    } catch (e) {
+                        console.error("Failed to load data", e);
+                    } finally {
+                        setIsLoading(false);
+                    }
+                };
+                fetchGames();
+            }, []);
+
+            const filteredGames = useMemo(() => {
+                let list = games;
+                
+                // Simulated Category Logic
+                if (selectedCategory === 'new') {
+                    // Recently added (simulated by taking games starting with 'Z' as a proxy for 'new' in this static list)
+                    list = [...games].reverse();
+                } else if (selectedCategory === 'trending') {
+                    // Random but stable shuffle for trending
+                    list = games.filter((_, i) => (i * 7) % 10 < 4);
+                } else if (selectedCategory === 'popular') {
+                    // Popular simulation
+                    list = games.filter((_, i) => (i * 3) % 10 < 3);
+                } else if (selectedCategory === 'action') {
+                    // Action genre simulation (games with short titles)
+                    list = games.filter(g => (g.title?.length || 0) < 10);
+                }
+
+                if (search) {
+                    const s = search.toLowerCase();
+                    list = list.filter(g => g.title?.toLowerCase().includes(s));
+                }
+                return list;
+            }, [games, search, selectedCategory]);
+
+            // Pagination/Virtualization Simulation for performance
+            const [visibleCount, setVisibleCount] = useState(60);
+            useEffect(() => {
+                const handleScroll = () => {
+                    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000) {
+                        setVisibleCount(prev => prev + 40);
+                    }
+                };
+                window.addEventListener('scroll', handleScroll);
+                return () => window.removeEventListener('scroll', handleScroll);
+            }, []);
+
+            return (
+                <div className="flex min-h-screen bg-[#050505]">
+                    {/* Sidebar Navigation */}
+                    <aside className="fixed left-0 top-0 w-20 lg:w-64 h-screen bg-[#0a0a0a] border-r border-zinc-900 flex flex-col z-50">
+                        <div className="h-16 flex items-center px-6 mb-8 mt-2">
+                             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20 mr-4">
+                                <Zap className="w-6 h-6 text-white fill-white" />
+                             </div>
+                             <span className="hidden lg:block text-xl font-black text-white italic tracking-tighter">NEBULA<span className="text-blue-500 not-italic ml-1">UGS</span></span>
+                        </div>
+                        
+                        <nav className="flex-1 px-4 space-y-1">
+                            {CATEGORIES.map(cat => (
+                                <button 
+                                    key={cat.id}
+                                    onClick={() => setSelectedCategory(cat.id)}
+                                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all group ${selectedCategory === cat.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10' : 'text-zinc-500 hover:text-white hover:bg-zinc-900'}`}
+                                >
+                                    <cat.icon className={`w-5 h-5 ${selectedCategory === cat.id ? 'text-white' : cat.color}`} />
+                                    <span className="hidden lg:block text-xs font-black uppercase tracking-widest">{cat.name}</span>
+                                </button>
+                            ))}
+                            
+                            <div className="pt-8 pb-4">
+                                <span className="hidden lg:block px-4 mb-4 text-[10px] font-black text-zinc-600 uppercase tracking-widest">Community</span>
+                                <a href="https://discord.gg/rmVsAqkpkA" target="_blank" className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-900 transition-all">
+                                    <MessageSquare className="w-5 h-5 text-indigo-500" />
+                                    <span className="hidden lg:block text-xs font-black uppercase tracking-widest">Discord</span>
+                                </a>
+                            </div>
+                        </nav>
+
+                        <div className="p-4 mt-auto">
+                            <div className="hidden lg:block p-6 rounded-2xl bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 relative overflow-hidden group">
+                                <div className="absolute -top-4 -right-4 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all" />
+                                <h4 className="text-[11px] font-black text-white uppercase tracking-widest mb-2">Nebula Pro</h4>
+                                <p className="text-[10px] text-zinc-500 leading-relaxed mb-4">Support the development of the ultimate gaming stash.</p>
+                                <button className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-black uppercase rounded-lg transition-colors border border-white/5">
+                                    Join The Station
+                                </button>
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* Main Content Area */}
+                    <main className="flex-1 ml-20 lg:ml-64 nebula-grid-bg">
+                        {/* Search Top Bar */}
+                        <div className="h-20 flex items-center px-10 sticky top-0 bg-[#050505]/80 backdrop-blur-xl z-40 border-b border-zinc-900/50">
+                            <div className="flex-1 max-w-2xl relative group">
+                                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-blue-500 transition-colors" />
+                                <input 
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    placeholder="Search 2,700+ unblocked games..." 
+                                    className="w-full h-12 bg-zinc-900/50 border border-zinc-800 rounded-xl pl-14 pr-6 text-white placeholder:text-zinc-600 outline-none focus:border-blue-600/50 focus:ring-4 focus:ring-blue-600/5 transition-all text-sm font-medium"
+                                />
+                            </div>
+                            <div className="flex items-center gap-6 ml-8">
+                                <div className="hidden xl:flex flex-col items-end">
+                                    <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Server Status</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                        <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest leading-none">Operational</span>
+                                    </div>
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 p-[1px]">
+                                    <div className="w-full h-full rounded-full bg-zinc-950 flex items-center justify-center font-black text-xs text-white">U</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-10 space-y-12">
+                            {/* Hero Section */}
+                            {!search && (
+                                <section>
+                                    <div className="relative h-96 rounded-[2.5rem] overflow-hidden group shadow-2xl">
+                                        <img 
+                                            src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=2070" 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/40 to-transparent p-16 flex flex-col justify-center">
+                                            <div className="flex items-center gap-3 mb-6">
+                                                <div className="px-3 py-1 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-md">Spotlight</div>
+                                                <div className="px-3 py-1 bg-white/10 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest rounded-md">Archive Featured</div>
+                                            </div>
+                                            <h2 className="text-7xl font-black text-white italic tracking-tighter leading-none mb-6">
+                                                THE NEXT<br/><span className="text-blue-500 not-italic">GENERATION</span>
+                                            </h2>
+                                            <p className="text-zinc-400 max-w-md text-sm font-medium leading-relaxed mb-8">
+                                                Access thousands of classic and modern titles securely. Built for speed, performance, and unblocked freedom. No downloads, just pure gaming.
+                                            </p>
+                                            <div className="flex gap-4">
+                                                <button onClick={() => {
+                                                    document.getElementById('all-games')?.scrollIntoView({ behavior: 'smooth' });
+                                                }} className="px-8 h-14 bg-white text-black text-xs font-black uppercase rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl">Explore Collection</button>
+                                                <button 
+                                                    onClick={() => {
+                                                        setSelectedCategory('trending');
+                                                        document.getElementById('all-games')?.scrollIntoView({ behavior: 'smooth' });
+                                                    }}
+                                                    className="px-8 h-14 bg-white/5 backdrop-blur-md border border-white/10 text-white text-xs font-black uppercase rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center"
+                                                >
+                                                    View Trending
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* Games Grid */}
+                            <section id="all-games" className="space-y-8">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">
+                                            {search ? `Searching: "${search}"` : (
+                                                <span className="flex items-center gap-3">
+                                                    {selectedCategory === 'all' ? 'Universal Archives' : `Sector: ${CATEGORIES.find(c => c.id === selectedCategory)?.name}`}
+                                                </span>
+                                            )}
+                                        </h3>
+                                        <span className="px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                                            {filteredGames.length} Active Records
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <div className="h-10 px-4 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center gap-2 text-[10px] font-black text-zinc-400 uppercase">
+                                            Sort By: <span className="text-white">A-Z</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {isLoading ? (
+                                    <div className="py-40 flex flex-col items-center justify-center space-y-6">
+                                        <div className="flex gap-2">
+                                            {[0, 1, 2].map(i => (
+                                                <motion.div 
+                                                    key={i}
+                                                    animate={{ 
+                                                        scale: [1, 1.2, 1],
+                                                        opacity: [0.3, 1, 0.3]
+                                                    }}
+                                                    transition={{
+                                                        duration: 1,
+                                                        repeat: Infinity,
+                                                        delay: i * 0.2
+                                                    }}
+                                                    className="w-4 h-4 bg-blue-600 rounded-full"
+                                                />
+                                            ))}
+                                        </div>
+                                        <p className="text-zinc-500 font-black uppercase tracking-[0.5em] text-[10px]">Restoring Interface</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+                                        <AnimatePresence mode="popLayout">
+                                            {filteredGames.slice(0, visibleCount).map((game, idx) => (
+                                                <motion.div
+                                                    key={game.id}
+                                                    layout
+                                                    initial={{ opacity: 0, y: 20 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, scale: 0.9 }}
+                                                    transition={{ duration: 0.3, delay: (idx % 20) * 0.02 }}
+                                                >
+                                                    <GameCard game={game} size={idx === 0 && !search ? 'large' : 'normal'} />
+                                                </motion.div>
+                                            ))}
+                                        </AnimatePresence>
+                                    </div>
+                                )}
+
+                                {!isLoading && filteredGames.length === 0 && (
+                                    <div className="text-center py-40 bg-zinc-900/20 rounded-[3rem] border border-dashed border-zinc-800 flex flex-col items-center">
+                                         <Info className="w-12 h-12 text-zinc-700 mb-6" />
+                                         <p className="text-zinc-400 text-xl font-bold italic">No archives match your search query.</p>
+                                         <button onClick={() => setSearch("")} className="mt-6 text-blue-500 font-black uppercase text-xs tracking-widest hover:underline">Clear Search</button>
+                                    </div>
+                                )}
+                            </section>
+                        </div>
+                        
+                        <footer className="p-10 border-t border-zinc-900 mt-20 opacity-40">
+                             <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+                                <div className="flex items-center gap-4">
+                                     <div className="w-8 h-8 bg-zinc-800 rounded-lg flex items-center justify-center font-black text-white text-lg">N</div>
+                                     <span className="text-xs font-bold text-zinc-400">© 2026 Nebula UGS Station. All Rights Reserved.</span>
+                                </div>
+                                <div className="flex gap-8 text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                                    <a href="#" className="hover:text-white transition-colors">Privacy</a>
+                                    <a href="#" className="hover:text-white transition-colors">Terms</a>
+                                    <a href="#" className="hover:text-white transition-colors">Github</a>
+                                </div>
+                             </div>
+                        </footer>
+                    </main>
+
+                    {/* HUD Overlay */}
+                    <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-[100] pointer-events-none">
+                        <motion.div 
+                            initial={{ x: 100 }}
+                            animate={{ x: 0 }}
+                            className="pointer-events-auto px-5 py-3 bg-white text-black rounded-2xl shadow-2xl flex items-center gap-3 group cursor-pointer"
+                        >
+                            <Trophy className="w-5 h-5" />
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black uppercase tracking-tight">Daily Record</span>
+                                <span className="text-[11px] font-bold">12,455 Players Online</span>
+                            </div>
+                        </motion.div>
+                    </div>
+                </div>
+            );
+        }
+
+        function App() {
+            const location = useLocation();
+            const [isCloaked, setIsCloaked] = useState(true);
+
+            useEffect(() => {
+                document.title = "Learnify | Interactive Learning Portal";
+
+                // Hidden shortcut: Alt + Shift + N
+                const handleKey = (e) => {
+                    if (e.altKey && e.shiftKey && e.key === 'N') {
+                        handleEnter();
+                    }
+                };
+                window.addEventListener('keydown', handleKey);
+                return () => window.removeEventListener('keydown', handleKey);
+            }, []);
+
+            const handleEnter = () => {
+                setIsCloaked(false);
+                document.title = "Nebula UGS";
+                window.scrollTo(0, 0);
+            };
+
+            if (isCloaked) {
+                return <EducationCloak onEnter={handleEnter} />;
+            }
+            
+            return (
+                <AnimatePresence mode="wait">
+                    <Routes location={location} key={location.pathname}>
+                        <Route path="/" element={<MainLayout />} />
+                        <Route path="/game/:id" element={<GameView />} />
+                    </Routes>
+                </AnimatePresence>
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<Router><App /></Router>);
+    </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "Learnify",
+  "description": "Interactive learning portal and unblocked games stash. Access educational content and thousands of games securely and quickly.",
+  "requestFramePermissions": [
+    "fullscreen"
+  ],
+  "majorCapabilities": []
+}
