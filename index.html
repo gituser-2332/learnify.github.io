@@ -92,6 +92,7 @@
             { id: 'popular', name: 'Most Popular', icon: Gamepad2, color: 'text-blue-500' },
             { id: 'new', name: 'Recently Added', icon: Sparkles, color: 'text-purple-500' },
             { id: 'action', name: 'Action', icon: Zap, color: 'text-yellow-500' },
+            { id: 'science', name: 'Science', icon: BookOpen, color: 'text-yellow-600' },
             { id: 'all', name: 'All Games', icon: LayoutGrid, color: 'text-zinc-400' },
         ];
 
@@ -387,7 +388,15 @@
             const navigate = useNavigate();
             const [loading, setLoading] = useState(true);
             const [allGames, setAllGames] = useState([]);
-            const iframeUrl = `/api/ugs/${id}`;
+            const isStaticHost = window.location.hostname.endsWith('.github.io') || 
+                                 window.location.hostname.includes('github.io') || 
+                                 window.location.hostname.includes('googleusercontent.com') ||
+                                 (window.location.hostname !== 'localhost' && 
+                                  window.location.hostname !== '127.0.0.1' && 
+                                  !window.location.hostname.includes('run.app'));
+            const iframeUrl = isStaticHost 
+                ? `https://cdn.jsdelivr.net/gh/mcgee1717/994894838923761723/UGS-Files/${id}.html`
+                : `/api/ugs/${id}`;
             const title = id.replace(/^(cl|cl_)/i, '').replace(/([A-Z])/g, ' $1').trim() || id;
 
             useEffect(() => {
@@ -568,6 +577,9 @@
                 } else if (selectedCategory === 'action') {
                     // Action genre simulation (games with short titles)
                     list = games.filter(g => (g.title?.length || 0) < 10);
+                } else if (selectedCategory === 'science') {
+                    // Science simulation (games with 'lab' or just a subset of games)
+                    list = games.filter(g => g.title?.toLowerCase().includes('lab') || (g.title?.length || 0) % 7 === 0);
                 }
 
                 if (search) {
